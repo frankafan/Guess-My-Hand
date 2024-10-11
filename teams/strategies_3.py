@@ -27,10 +27,12 @@ SAVE_SEED_SCORE_DATA = False
 USE_UNLIKELY_CARD_STRATEGY = True
 
 
-def get_seed(card: Card):
-    return int(CARD_VALUE.get(card.value, card.value)) + 13 * (
+def get_seed(card: Card, round: int):
+    seed = int(CARD_VALUE.get(card.value, card.value)) + 13 * (
         list(card.map.keys()).index(card.suit)
     )
+
+    return seed + 52 * round
 
 
 def get_possible_cards():
@@ -42,10 +44,10 @@ def get_possible_cards():
     return possible_cards
 
 
-def get_shuffle(card: Card) -> list[Card]:
+def get_shuffle(card: Card, round: int) -> list[Card]:
     """Returns an **unprocessed** shuffled deck based off a card's seed"""
     possible_cards = get_possible_cards()
-    seed = get_seed(card)
+    seed = get_seed(card, round)
     np.random.seed(seed)
 
     shuffled_cards = possible_cards.copy()
@@ -63,8 +65,10 @@ def card_with_best_seed(player: Player) -> Card:
     highest_score = 0
     card_to_play = None
 
+    round = len(player.exposed_cards[TEAMMATE_NAME[player.name]]) + 1
+
     for card in player.hand:
-        shuffled_cards = get_shuffle(card)
+        shuffled_cards = get_shuffle(card, round)
 
         for c in shuffled_cards:
             if c in played_cards:
@@ -95,11 +99,13 @@ def card_with_best_seed(player: Player) -> Card:
     return card_to_play or player.hand[0]
 
 
-def get_teammate_shuffle(player, teammate_last_card):
+def get_teammate_shuffle(player: Player, teammate_last_card):
     played_cards = sum(list(player.exposed_cards.values()), [])
     possible_cards = get_possible_cards()
 
-    seed = get_seed(teammate_last_card)
+    round = len(player.exposed_cards[TEAMMATE_NAME[player.name]]) + 1
+
+    seed = get_seed(teammate_last_card, round)
     np.random.seed(seed)
     shuffled_cards = possible_cards.copy()
     np.random.shuffle(shuffled_cards)
@@ -227,7 +233,8 @@ def unlikeliest_card(player: Player, deck: Deck) -> Card:
         shown[card] = 0
 
     for idx, played_card in enumerate(player.played_cards):
-        combination = get_shuffle(played_card)[: 12 - idx]
+        round = player.exposed_cards[player.name].index(played_card) + 1
+        combination = get_shuffle(played_card, round)[: 12 - idx]
 
         for card in combination:
             if card in shown:
