@@ -24,10 +24,7 @@ TEAMMATE_NAME = {
 # playing unlikely cards
 SEED_ROUNDS = 2
 SAVE_SEED_SCORE_DATA = False
-USE_UNLIKELY_CARD_STRATEGY = False
-
-
-LAMBDA1 = 0.5
+USE_UNLIKELY_CARD_STRATEGY = True
 
 
 def get_seed(card: Card):
@@ -81,45 +78,6 @@ def card_with_best_seed(player: Player) -> Card:
             # we would play ~ 1pt / game optimization
             if c in player.hand and c != card:
                 score += 1
-        if score > highest_score:
-            highest_score = score
-            card_to_play = card
-
-    if SAVE_SEED_SCORE_DATA and len(player.played_cards) < 12:
-        player.add_seed_score(
-            [
-                player.name,
-                len(player.played_cards) + 1,
-                highest_score / (12 - len(player.played_cards)),
-            ]
-        )
-
-    # TODO: plays random card - we can optimize this
-    return card_to_play or player.hand[0]
-
-
-def card_with_best_seed_improved(player: Player) -> Card:
-    played_cards = sum(list(player.exposed_cards.values()), [])
-    highest_score = 0
-    card_to_play = None
-
-    for card in player.hand:
-        shuffled_cards = get_shuffle(card)
-
-        for c in shuffled_cards:
-            if c in played_cards:
-                shuffled_cards.remove(c)
-
-        combination = shuffled_cards[: 12 - len(player.played_cards)]
-
-        score = 0
-        for c in combination:
-            # we don't get points for having a card in the permutation that
-            # we would play ~ 1pt / game optimization
-            if c in player.hand and c != card:
-                score += 1
-                if c in get_card_indication_freq(player):
-                    score -= get_card_indication_freq(player)[c] * LAMBDA1
         if score > highest_score:
             highest_score = score
             card_to_play = card
