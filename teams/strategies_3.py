@@ -28,6 +28,7 @@ USE_UNLIKELY_CARD_STRATEGY = False
 
 
 LAMBDA1 = 0.5
+LAMBDA2 = 0
 
 
 def get_seed(card: Card):
@@ -120,6 +121,8 @@ def card_with_best_seed_improved(player: Player) -> Card:
                 score += 1
                 if c in get_card_indication_freq(player):
                     score -= get_card_indication_freq(player)[c] * LAMBDA1
+                score -= LAMBDA2 * len(player.exposed_cards[player.name])
+
         if score > highest_score:
             highest_score = score
             card_to_play = card
