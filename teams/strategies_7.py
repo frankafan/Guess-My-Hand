@@ -1,5 +1,6 @@
 import logging
 import random
+import math
 import numpy as np
 from CardGame import Card, Deck, Player
 
@@ -38,6 +39,12 @@ NUM_TO_CARD = {
 }
 
 REV_CARD_TO_NUM = {value:key for key, value in NUM_TO_CARD.items()}
+
+MU = 25.5
+SIGMA = 100
+
+def gaussian_pdf(x, mu, sigma):
+    return (1 / (sigma * math.sqrt(2 * math.pi))) * math.exp(-0.5 * ((x - mu) / sigma) ** 2)
 
 
 def update_prob_based_on_correct_answers(player,probability_dict, guessed_cards, correct_answers):
@@ -180,7 +187,7 @@ def zero_above_card(player, card):
 
     logging.debug(f"The highest card number is (in number form) {num}")
     
-    for i in range(num + 1, 52):
+    for i in range(num, 52):
         player.card_probabilities[i] = 0.0
         logging.debug(f"Setting probability of card {i} to 0")
     normalize_probabilities(player)
@@ -203,7 +210,7 @@ def guessing(player, cards, round):
     global player_guesses
     if round == 1:
         # global player.card_probabilities
-        player.card_probabilities = {num:1/39 for num in range(NUM_CARDS)}
+        player.card_probabilities = {num:gaussian_pdf(num, MU, SIGMA) for num in range(NUM_CARDS)}
         zero_probabilities(player, player.hand)
         
     normalize_probabilities(player)
@@ -248,7 +255,7 @@ def guessing(player, cards, round):
         # sum of probabilities should be 1
         logging.debug(f"Total probability: {sum(player.card_probabilities.values())}")
             
-    card_choices_obj = choose_cards(player, round, max_probs=False)
+    card_choices_obj = choose_cards(player, round, max_probs=True)
 
     if player.name not in player_guesses:
         player_guesses[player.name] = {}  # Initialize if not present

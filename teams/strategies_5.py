@@ -73,11 +73,11 @@ expectation_constants = {
 samples_received = defaultdict(list)
 
 
-def get_seed(card):
+def get_seed(card, round):
     """
     Generates a seed value based on the card's value and suit.
     """
-    return (card**2) + 7
+    return (card**round) + 7
 
 
 def get_possible_cards(player, stop_at_who):
@@ -96,14 +96,14 @@ def get_possible_cards(player, stop_at_who):
     return possible
 
 
-def get_sample(card, sample_size, player, stop_at_who):
+def get_sample(card, sample_size, player, stop_at_who, round):
     """
     Returns a sample of cards based on the seed derived from the card.
     """
     possible_cards = get_possible_cards(player, stop_at_who)
     possible_cards.remove(card)
     # print(card, len(possible_cards), player.name, stop_at_who)
-    seed = get_seed(card)
+    seed = get_seed(card, round)
     random.seed(seed)
     return random.sample(possible_cards, sample_size)
 
@@ -113,6 +113,7 @@ def playing(player, deck):
     Selects the card to play based on maximizing the overlap between
     the generated sample and the player's own hand.
     """
+    round = len(player.cVals) + 1
     # print(player.name, player.exposed_cards)
     if not player.hand:
         return None
@@ -125,7 +126,7 @@ def playing(player, deck):
     sample_size = max(sample_size, 0)
 
     for idx, card in enumerate(held_cards):
-        sample = get_sample(card, sample_size, player, player.name)
+        sample = get_sample(card, sample_size, player, player.name, round)
         # print(card, ",", sample)
 
         score = sum(1 for c in sample if c in held_cards)
@@ -147,8 +148,8 @@ def guessing(player, cards, round):
     #     count += 1
     #     for i in range(len(player.cVals)):
     #         avg[i] = (avg[i] * (count - 1) + player.cVals[i]) / count
-
     #     print(player.name, avg)
+
     cp = {val: 1 for val in range(52)}
 
     for held_card in player.hand:
@@ -177,7 +178,7 @@ def guessing(player, cards, round):
     sample_size = 13 - len(partner_exposed_cards)
     sample_size = max(sample_size, 0)
 
-    sample = get_sample(last_partner_card, sample_size, player, partner_name)
+    sample = get_sample(last_partner_card, sample_size, player, partner_name, round)
     # print("---", player.name, sample)
     samples_received[player.name].append(sample)
 

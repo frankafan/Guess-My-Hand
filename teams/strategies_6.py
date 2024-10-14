@@ -1,5 +1,6 @@
 import random
 import time
+import math
 from CardGame import Card
 
 random_seed = 11024891
@@ -17,14 +18,31 @@ def playing(player, deck):
     cards_to_indices = create_card_to_index_mapping(random_seed, deck)
     turn = 14 - len(player.hand)
 
-    if turn % 2 == 0:
-        # on even turns, expose the card with the highest index value
-        bound_card = max(player.hand, key=lambda card: cards_to_indices[card])
-    else:
-        # on odd turns, expose the card with the lowest index value
-        bound_card = min(player.hand, key=lambda card: cards_to_indices[card])
+    if turn < 9:
+        # play greedy min/max variant
+        prev_min = 0
+        prev_max = 53
+        for card in player.played_cards:
+            if (cards_to_indices[card] - prev_min) < (prev_max - cards_to_indices[card]):
+                prev_min = cards_to_indices[card]
+            else:
+                prev_max = cards_to_indices[card]
 
-    return player.hand.index(bound_card)
+        curr_min_card = min(player.hand, key=lambda card: cards_to_indices[card])
+        curr_max_card = max(player.hand, key=lambda card: cards_to_indices[card])
+
+        if (cards_to_indices[curr_min_card] - prev_min) > (prev_max - cards_to_indices[curr_max_card]):
+            card_to_play = curr_min_card
+        else:
+            card_to_play = curr_max_card
+    elif turn % 2 == 0:
+        # on even turns, play card with highest index value
+        card_to_play = max(player.hand, key=lambda card: cards_to_indices[card])
+    else:
+        # on odd turns, play card with lowest index value
+        card_to_play = min(player.hand, key=lambda card: cards_to_indices[card])
+    
+    return player.hand.index(card_to_play)
 
 def guessing(player, cards, round):
     """
@@ -53,13 +71,25 @@ def guessing(player, cards, round):
         del card_probs_by_index[cards_to_indices[exposed_card]]
 
     # Delete cards based on partner's min/max boundary information
-    for i in range(len(partner_cards_exposed)):
-        bound = cards_to_indices[partner_cards_exposed[i]]
-        if (i + 1) % 2 == 0:
-            indices_to_delete = [index for index in card_probs_by_index if index > bound]
+    prev_min = 0
+    prev_max = 53
+    for turn in range(len(partner_cards_exposed)):
+        played_card = cards_to_indices[partner_cards_exposed[turn]]
+        if (turn + 1) < 9:
+            # partner playing greedy min/max
+            if (played_card - prev_min) < (prev_max - played_card):
+                # partner played a minimum card
+                prev_min = played_card
+                indices_to_delete = [index for index in card_probs_by_index if index < played_card]
+            else:
+                # partner played a maximum card
+                prev_max = played_card
+                indices_to_delete = [index for index in card_probs_by_index if index > played_card]
+        elif (turn + 1) % 2 == 0:
+            indices_to_delete = [index for index in card_probs_by_index if index > played_card]
         else:
-            indices_to_delete = [index for index in card_probs_by_index if index < bound]
-        
+            indices_to_delete = [index for index in card_probs_by_index if index < played_card]
+
         for index in indices_to_delete:
             del card_probs_by_index[index]
 
@@ -75,8 +105,6 @@ def guessing(player, cards, round):
     for index in top_n_card_prob_indices:
         card_guesses.append(indices_to_cards[index])
 
-    # if player.name == "North":
-    #     print(f"Guess Set: {card_guesses}")
     return card_guesses
 
 def update_probs_from_guesses(card_probs_by_index, player, partner_cards_exposed, all_other_cards_exposed, cards_to_indices, indices_to_cards):

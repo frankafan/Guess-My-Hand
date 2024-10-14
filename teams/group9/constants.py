@@ -47,11 +47,11 @@ TEAMMATE = {
 }
 
 # teammate_max = ''
-PLAYER_GUESSES = {
-    'North' : [],
-    'East' : [],
-    'South' : [],
-    'West' : []
-}
+# PLAYER_GUESSES = {
+#     'North' : [],
+#     'East' : [],
+#     'South' : [],
+#     'West' : []
+# }
 
-EXPOSED_CARDS = []
+# EXPOSED_CARDS = []

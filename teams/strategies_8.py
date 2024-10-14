@@ -106,7 +106,7 @@ def create_hash_map(cards, index_to_care_about):
     print("Total Combos: ", totalCombos)
     hash_map = {i: [] for i in range(math.factorial(num_cards_to_send))} 
     
-    for combo in tqdm(combos, desc="Hashing combinations", unit="combo", total=totalCombos):
+    for combo in combos:
         # sorted_combo = sorted(combo, key=get_card_value)
         hash_value = hash_combination(combo)
         if hash_value == index_to_care_about:
@@ -114,6 +114,13 @@ def create_hash_map(cards, index_to_care_about):
     
     return hash_map
 
+
+# three_min_four_max = ourHandSorted[0:3] + ourHandSorted[-4:]
+# print("three_min_four_max: ", three_min_four_max)
+# cards_to_hash = list(set(ourHandSorted) - set(three_min_four_max))
+# ourHandHash[player.name] = hash_combination(cards_to_hash) # Only hash the cards we don't play
+# print(f"Player: {player.name} Sending: {ourHandHash[player.name]}")
+# first_7_cards_to_play[player.name] = get_card_order(three_min_four_max, ourHandHash[player.name]) # Should prob use sorted hand here
 
 def playing(player: Player, deck: Deck):
     global ourHandHash
@@ -244,7 +251,7 @@ def update_card_probs(cards, card_probabilities, player):
     other_teams_exposed_cards_set = set(get_other_teams_exposed_cards(player))
 
     combined_probs_from_guesses = {key: 1 for key in card_probabilities[player.name]}
-    cards_with_non_zero_probability = set(card_probabilities.keys())
+    cards_with_non_zero_probability = set(card_probabilities[player.name].keys())
     for guess_index, guess in enumerate(guesses[player.name]):
         # print(guess_index)
         # print(player.cVals)
@@ -252,11 +259,12 @@ def update_card_probs(cards, card_probabilities, player):
         guess_set = set(guess)
 
         prob_numerator_for_cards_in_guess = cVal_for_guess - len(guess_set.intersection(team_mates_cards_set))
-        prob_denominator_for_cards_in_guess = len(guess) - len(guess_set.intersection(cards_with_non_zero_probability))
+        prob_denominator_for_cards_in_guess = len(guess_set.intersection(cards_with_non_zero_probability))
 
+        viable_cards_not_in_guess = set(cards_with_non_zero_probability) - set(guess_set)
+        num_viable_cards_not_in_guess = len(viable_cards_not_in_guess)
 
-        num_cards_not_in_guess_team_mate_has_played = len(team_mates_cards_set) -  len(guess_set.intersection(team_mates_cards_set))
-        num_viable_cards_not_in_guess = len(cards_with_non_zero_probability - guess_set)
+        num_cards_not_in_guess_team_mate_has_played = len(team_mates_cards_set) - len(guess_set.intersection(team_mates_cards_set))
         
         prob_numerator_for_cards_not_in_guess = len(guess) - cVal_for_guess - num_cards_not_in_guess_team_mate_has_played
         prob_denominator_for_cards_not_in_guess = num_viable_cards_not_in_guess
@@ -264,17 +272,22 @@ def update_card_probs(cards, card_probabilities, player):
 
         for card in card_probabilities[player.name]:
             if card in guess:
-                combined_probs_from_guesses[card] *= (prob_numerator_for_cards_in_guess / prob_denominator_for_cards_in_guess)
+                combined_probs_from_guesses[card] *= (prob_numerator_for_cards_in_guess / prob_denominator_for_cards_in_guess) if prob_denominator_for_cards_in_guess > 0 else 0
             else:
-                combined_probs_from_guesses[card] *= (prob_numerator_for_cards_not_in_guess / prob_denominator_for_cards_not_in_guess)
+                combined_probs_from_guesses[card] *= (prob_numerator_for_cards_not_in_guess / prob_denominator_for_cards_not_in_guess) if prob_denominator_for_cards_not_in_guess > 0 else 0
     # Now combine all the probabilities from each guess
 
-    # max_team_mate_played_card = max(get_card_value(card) for card in team_mates_cards_set)
+    max_team_mate_played_card = max(get_card_value(card) for card in team_mates_cards_set)
     
-    # for card in combined_probs_from_guesses:
-    #     if get_card_value(card) > max_team_mate_played_card:
-    #         combined_probs_from_guesses[card] *= 1.8
-    
+    for card in combined_probs_from_guesses:
+        if get_card_value(card) > max_team_mate_played_card:
+            combined_probs_from_guesses[card] *= 1.3
+
+    for card in set(cards) - set(get_viable_cards(cards, player)):
+        if card in combined_probs_from_guesses and combined_probs_from_guesses[card] == 0:
+            del combined_probs_from_guesses[card]
+
+            
     card_probabilities[player.name] = combined_probs_from_guesses
 
 

@@ -14,13 +14,13 @@ points_2 = {}
 prev_guesses_2 = []
 
 def initialize_totals(deck, remaining_cards, points):
-    print("Initializing totals player")
+    # print("Initializing totals player")
     for card in deck.copyCards:
         remaining_cards[card_to_idx(card)] = 1
         points[card_to_idx(card)] = 0
 
 def initialize_totals_guessing(deck, remaining_cards, points, player_name):
-    print("Initializing totals guessing")
+    # print("Initializing totals guessing")
     if player_name == "North" or player_name == "East":
         global prev_guesses_1
         prev_guesses_1 = []
