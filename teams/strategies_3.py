@@ -240,7 +240,7 @@ def unlikeliest_card(player: Player, deck: Deck) -> Card:
     return unlikely_cards[0][0]
 
 
-def get_card_indication_freq(player: Player, cards: list[Card], round: int):
+def get_card_indication_freq(player: Player):
     all_cards = get_possible_cards()
     card_probabilities = {
         card: 0 for card in remove_impossible_cards(player, all_cards)
@@ -290,7 +290,7 @@ def playing(player: Player, deck: Deck):
         return None
 
     if not USE_UNLIKELY_CARD_STRATEGY:
-        card_to_play = card_with_best_seed(player)
+        card_to_play = card_with_best_seed_improved(player)
     else:
         if len(player.guesses) < SEED_ROUNDS:
             card_to_play = card_with_best_seed(player)
@@ -312,7 +312,7 @@ def guessing(player, cards, round):
         not USE_UNLIKELY_CARD_STRATEGY
     ):  # Set to False because this strategy is not optimized yet
         card_p = get_card_probabilities(player, cards, round)
-        card_freq = get_card_indication_freq(player, cards, round)
+        card_freq = get_card_indication_freq(player)
 
         combined_prob = dict()
 
