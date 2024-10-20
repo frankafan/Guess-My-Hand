@@ -1,5 +1,6 @@
 import logging
 import random
+import math
 import numpy as np
 from CardGame import Card, Deck, Player
 
@@ -10,25 +11,12 @@ logging.basicConfig(filename='group7.log',
 
 logging.disable(logging.CRITICAL)
 
-"""
-Add the following lines of code to Card Game for the code to work:
-
-def __hash__(self):
-        return hash((self.suit, self.value))
-
-def __eq__(self, other):
-        return (self.suit, self.value) == (other.suit, other.value)
-        
-"""
 # G7 is the best
 
-#Stores guesses by player and round 
-player_guesses = {}
 
 SUITS = ["Clubs", "Diamonds", "Hearts", "Spades"]
 VALUES = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
 NUM_CARDS = len(SUITS) * len(VALUES)
-CARD_PROBABILITIES = {num:1/39 for num in range(NUM_CARDS)}
 TEAMMATE = {"North": "South", "South": "North", "East": "West", "West": "East"}
 
 # Create a dictionary that maps 0-51 to (value, suit)
@@ -39,8 +27,19 @@ NUM_TO_CARD = {
 
 REV_CARD_TO_NUM = {value:key for key, value in NUM_TO_CARD.items()}
 
+# These were found by testing to be optimal
+MU = 500
+SIGMA = 100
 
-def update_prob_based_on_correct_answers(player,probability_dict, guessed_cards, correct_answers):
+# Will play risky for this number of rounds
+RISKY_MM_CUTOFF = 9
+WRONG = 0
+
+def gaussian_pdf(x, mu, sigma):
+    return (1 / (sigma * math.sqrt(2 * math.pi))) * math.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+
+def update_prob_based_on_correct_answers(player,probability_dict, guessed_cards, correct_answers, round):
     """
     Updates the probabilities for the cards in the guessed_cards list.
 
@@ -52,12 +51,11 @@ def update_prob_based_on_correct_answers(player,probability_dict, guessed_cards,
     Returns:
         None: The probability_dict is updated in-place.
     """
-    #print(f"Number of correct answers {correct_answers}")
-    #print(correct_answers)
 
     perc_correct = correct_answers / len(guessed_cards)  # Factor to boost guessed cards
     perc_wrong =  1 - perc_correct
-    #print(f"Perc of correct answers {perc_correct}")
+    var_rounds = round/13
+    var_round = var_rounds**2
     for card in guessed_cards:
             probability_dict[card] *= perc_correct
 
@@ -67,27 +65,53 @@ def update_prob_based_on_correct_answers(player,probability_dict, guessed_cards,
         probability_dict[card] *= perc_wrong
 
     normalize_probabilities(player)
-    print(player.name)
-    print(probability_dict)
 
-def normalize(probability_dict):
-    total_prob = sum(probability_dict.values())
-    if total_prob > 0:
-        for card in probability_dict:
-            probability_dict[card] /= total_prob
 
 def playing(player, deck):
    
     turn = len(player.played_cards) + 1
-
-    flag =  (turn % 2)
-
-    if flag == 0:
-        flag = 1
-        return max_first(player, deck)
+    round = turn
+    if round == 1:
+        player.last_min_played = -1
+        player.last_max_played = 52
+    if round < RISKY_MM_CUTOFF:
+        return risky_min_max(player,deck)
     else:
-        flag = 0 
-        return min_first(player, deck)
+        flag =  (turn % 2)
+        if flag == 0:
+            flag = 1
+            return max_first(player, deck)
+        else:
+            flag = 0 
+            return min_first(player, deck)
+
+
+def risky_min_max(player, deck):
+    if not player.hand:
+        return None
+
+    # Find highest card
+    highest_card = -1
+    for i, card in enumerate(player.hand):
+        card_value = REV_CARD_TO_NUM[(card.suit, card.value)]
+        if card_value > highest_card:
+            highest_card = card_value
+            max_index = i
+
+    # Find lowest card
+    lowest_card = 52
+    for i, card in enumerate(player.hand):
+        card_value = REV_CARD_TO_NUM[(card.suit, card.value)]
+        if card_value < lowest_card:
+            lowest_card = card_value
+            min_index = i
+
+    if (lowest_card - player.last_min_played < player.last_max_played - highest_card):
+        player.last_max_played = highest_card
+        return max_index
+    else:
+        player.last_min_played = lowest_card
+        return min_index
 
 def max_first(player, deck):
     """
@@ -105,7 +129,6 @@ def max_first(player, deck):
     if not player.hand:
         return None
     
-    value_order = deck.values
     max_index = 0 
 
     highest_card = -1
@@ -114,7 +137,6 @@ def max_first(player, deck):
         if card_value > highest_card:
             highest_card = card_value
             max_index = i
-    print(highest_card, NUM_TO_CARD[highest_card])
     return max_index
 
 def min_first(player, deck):
@@ -152,6 +174,7 @@ def normalize_probabilities(player):
         player.card_probabilities[0] = 1
 
 def zero_probabilities(player, cards):
+    # print(cards)
     for card in cards:
         suit = card.suit
         val = card.value
@@ -180,12 +203,14 @@ def zero_above_card(player, card):
 
     logging.debug(f"The highest card number is (in number form) {num}")
     
-    for i in range(num + 1, 52):
+    for i in range(num, 52):
         player.card_probabilities[i] = 0.0
         logging.debug(f"Setting probability of card {i} to 0")
     normalize_probabilities(player)
 
 def choose_cards(player, round, max_probs=False):
+    if round == 13:
+        return []
     if not max_probs:
         choices = np.random.choice(
             list(player.card_probabilities.keys()),
@@ -200,60 +225,52 @@ def choose_cards(player, round, max_probs=False):
 
 
 def guessing(player, cards, round):
-    global player_guesses
     if round == 1:
-        # global player.card_probabilities
-        player.card_probabilities = {num:1/39 for num in range(NUM_CARDS)}
+        player.player_guesses = {}
+        player.card_probabilities = {num:gaussian_pdf(num, MU, SIGMA) for num in range(NUM_CARDS)}
+        # player.card_probabilities = {num:1/39 for num in range(NUM_CARDS)}
         zero_probabilities(player, player.hand)
+        player.last_min_zeroed = -1
+        player.last_max_zeroed = 52
         
-    normalize_probabilities(player)
     exposed_cards = [i for j in list(player.exposed_cards.values()) for i in j]
     zero_probabilities(player, exposed_cards)
     zero_probabilities(player, player.played_cards)
 
     last_exposed_card = player.exposed_cards[TEAMMATE[player.name]][-1]
+    last_exposed_card_index = REV_CARD_TO_NUM[(last_exposed_card.suit, last_exposed_card.value)]
 
     # # if even round, guess the highest card
-    if round % 2 == 0:
-        logging.debug(f"Zeroing highest card and above")
-        print(f"Player {player.name} zeroing above {last_exposed_card}")
-        zero_above_card(player, last_exposed_card)
-    else:
-        logging.debug(f"Zeroing below card and above")
-        print(f"Player {player.name} zeroing below {last_exposed_card}")
-        zero_below_card(player, last_exposed_card)
 
-    if round > 1:
-        print(f"After round {round}, number of cvals : {player.cVals}")
-    
+    if round >= RISKY_MM_CUTOFF: 
+        if round % 2 == 0:
+            logging.debug(f"Zeroing highest card and above")
+            zero_above_card(player, last_exposed_card)
+        else:
+            logging.debug(f"Zeroing below card and above")
+            zero_below_card(player, last_exposed_card)
+
+    # we guess min or max based on if the number is closer to the last min or the last max
+    else:
+        if (last_exposed_card_index - player.last_min_zeroed < player.last_max_zeroed - last_exposed_card_index):
+            player.last_min_zeroed = last_exposed_card_index
+            zero_below_card(player, last_exposed_card)
+        else: 
+            player.last_max_zeroed = last_exposed_card_index
+            zero_above_card(player, last_exposed_card)
+
     if round > 1: # We have c values 
         correct_answers = player.cVals[-1]
-        previous_guesses = player_guesses[player.name].get(round - 1, [])
-        print(correct_answers)
-        print(len(previous_guesses))
+        previous_guesses = player.player_guesses[player.name].get(round - 1, [])
         previous_guess_indices = [REV_CARD_TO_NUM[(card.suit, card.value)] for card in previous_guesses]
-        update_prob_based_on_correct_answers(player, player.card_probabilities, previous_guess_indices, correct_answers)
-
-
-        
-
-        logging.debug(f"Current Player: {player.name}")
-        logging.debug(f"Current Teammate: {TEAMMATE[player.name]}")
-        logging.debug(f"The player, {player.name}, is examining card: {player.exposed_cards[TEAMMATE[player.name]][-1]}")
-        
-
-
-        logging.debug(f"Summary of Player: {player.name}")
-        logging.debug(player.card_probabilities)
-        # sum of probabilities should be 1
-        logging.debug(f"Total probability: {sum(player.card_probabilities.values())}")
+        update_prob_based_on_correct_answers(player, player.card_probabilities, previous_guess_indices, correct_answers, round)
             
-    card_choices_obj = choose_cards(player, round, max_probs=False)
+    card_choices_obj = choose_cards(player, round, max_probs=True)
 
-    if player.name not in player_guesses:
-        player_guesses[player.name] = {}  # Initialize if not present
+    if player.name not in player.player_guesses:
+        player.player_guesses[player.name] = {}  # Initialize if not present
 
-    player_guesses[player.name][round] = card_choices_obj
+    player.player_guesses[player.name][round] = card_choices_obj
 
 
     return card_choices_obj

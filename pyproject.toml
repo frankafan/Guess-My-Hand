@@ -1,0 +1,10 @@
+[tool.black]
+
+include = '''
+.*\.py$
+'''
+
+force-exclude = '''
+^(?!\/teams\/).*
+'''
+

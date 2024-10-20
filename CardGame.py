@@ -74,10 +74,7 @@ class Player:
         self.guesses = []
         self.exposed_cards = {"North": [], "East": [], "South": [], "West": []}
         self.cVals = []
-        self.seed_scores = []
 
-    def add_seed_score(self, score):
-        self.seed_scores.append(score)
 
     def draw(self, deck):
         card = deck.draw()

@@ -86,14 +86,15 @@ def card_with_best_seed(player: Player) -> Card:
             highest_score = score
             card_to_play = card
 
-    if SAVE_SEED_SCORE_DATA and len(player.played_cards) < 12:
-        player.add_seed_score(
-            [
-                player.name,
-                len(player.played_cards) + 1,
-                highest_score / (12 - len(player.played_cards)),
-            ]
-        )
+    # only add the seed score if the Player.add_seed_score() exists
+    # if SAVE_SEED_SCORE_DATA and len(player.played_cards) < 12:
+    # player.add_seed_score(
+    #     [
+    #         player.name,
+    #         len(player.played_cards) + 1,
+    #         highest_score / (12 - len(player.played_cards)),
+    #     ]
+    # )
 
     # TODO: plays random card - we can optimize this
     return card_to_play or player.hand[0]
@@ -380,8 +381,14 @@ def guessing(player, cards, round):
             combination = add_likely_cards(player, [], cards)
 
         if round == 13 and SAVE_SEED_SCORE_DATA:
+            # to save seed scores, make sure Player.seed_scores exists
+            # def __init__():
+            #     self.seed_scores = []
+            # def add_seed_score(self, score):
+            #     self.seed_scores.append(score)
             with open(f"seed_scores.csv", mode="a", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerows(player.seed_scores)
+                # this fails unless player.seed_scores exists
+                # writer.writerows(player.seed_scores)
 
     return combination

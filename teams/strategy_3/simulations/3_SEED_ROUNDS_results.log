@@ -1,0 +1,50 @@
+starting 1024 rounds at Thu Oct 10 18:52:12 UTC 2024
+Scores over 1024 simulations:
+NS Mean: 87.22 | NS Std Dev: 9.42
+EW Mean: 24.97 | EW Std Dev: 4.17
+Finished 1024 rounds at Thu Oct 10 18:52:50 UTC 2024
+starting 2048 rounds at Thu Oct 10 18:52:50 UTC 2024
+Scores over 2048 simulations:
+NS Mean: 87.20 | NS Std Dev: 9.30
+EW Mean: 24.92 | EW Std Dev: 4.14
+Finished 2048 rounds at Thu Oct 10 18:54:00 UTC 2024
+starting 4096 rounds at Thu Oct 10 18:54:00 UTC 2024
+Scores over 4096 simulations:
+NS Mean: 87.20 | NS Std Dev: 9.23
+EW Mean: 24.96 | EW Std Dev: 4.12
+Finished 4096 rounds at Thu Oct 10 18:58:16 UTC 2024
+starting 8192 rounds at Thu Oct 10 18:58:16 UTC 2024
+Scores over 8192 simulations:
+NS Mean: 87.17 | NS Std Dev: 9.27
+EW Mean: 24.96 | EW Std Dev: 4.12
+Finished 8192 rounds at Thu Oct 10 19:07:13 UTC 2024
+starting 16384 rounds at Thu Oct 10 19:07:13 UTC 2024
+Scores over 16384 simulations:
+NS Mean: 87.08 | NS Std Dev: 9.32
+EW Mean: 25.01 | EW Std Dev: 4.14
+Finished 16384 rounds at Thu Oct 10 19:25:31 UTC 2024
+starting 32768 rounds at Thu Oct 10 19:25:31 UTC 2024
+Scores over 32768 simulations:
+NS Mean: 87.04 | NS Std Dev: 9.28
+EW Mean: 25.01 | EW Std Dev: 4.12
+Finished 32768 rounds at Thu Oct 10 20:01:15 UTC 2024
+starting 65536 rounds at Thu Oct 10 20:01:15 UTC 2024
+Scores over 65536 simulations:
+NS Mean: 87.03 | NS Std Dev: 9.24
+EW Mean: 25.00 | EW Std Dev: 4.15
+Finished 65536 rounds at Thu Oct 10 21:13:50 UTC 2024
+starting 131072 rounds at Thu Oct 10 21:13:50 UTC 2024
+Scores over 131072 simulations:
+NS Mean: 87.02 | NS Std Dev: 9.24
+EW Mean: 25.00 | EW Std Dev: 4.15
+Finished 131072 rounds at Thu Oct 10 23:40:36 UTC 2024
+starting 262144 rounds at Thu Oct 10 23:40:36 UTC 2024
+Scores over 262144 simulations:
+NS Mean: 87.03 | NS Std Dev: 9.27
+EW Mean: 25.01 | EW Std Dev: 4.14
+Finished 262144 rounds at Fri Oct 11 04:29:50 UTC 2024
+starting 524288 rounds at Fri Oct 11 04:29:50 UTC 2024
+Scores over 524288 simulations:
+NS Mean: 87.02 | NS Std Dev: 9.27
+EW Mean: 25.00 | EW Std Dev: 4.14
+Finished 524288 rounds at Fri Oct 11 14:05:08 UTC 2024
