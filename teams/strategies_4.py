@@ -44,7 +44,7 @@ NUM_TO_VAL = {v: k for k, v in VAL_TO_NUM.items()}
 MIN_SUIT = {player: -1 for player in PLAYERS}
 
 DECK = [Card(suit, value) for suit in SUIT_TO_NUM.keys() for value in VAL_TO_NUM.keys()]
-SWITCH_STRATEGIES = 5
+SWITCH_STRATEGIES = 1
 PERMUTATIONS_SEEN = { "North": [],
     "South": [],
     "East": [],
@@ -57,8 +57,26 @@ def generate_permutation(perm_size, seedcard, player, unguessed_cards):
     unguessed = unguessed_cards.copy()
     if seedcard in unguessed:
         unguessed.remove(seedcard)
-    rng = random.Random(SUIT_TO_NUM[seedcard.suit] + VAL_TO_NUM[seedcard.value])
-    return rng.sample(unguessed_cards, perm_size)
+    unguessed = sorted(unguessed, key=lambda k: VAL_TO_NUM[k.value] + SUIT_TO_NUM[k.suit])
+
+    # Generate a seed based on the card's suit and value
+    seed = SUIT_TO_NUM[seedcard.suit] + VAL_TO_NUM[seedcard.value]
+    
+    # Use NumPy's random generator with the seed
+    # rng = np.random.default_rng(seed)
+    
+    # Generate the permutation sample
+    random.seed(seed)
+    # sample1 = np.random.choice(unguessed, perm_size, replace=False)
+    # np.random.seed(seed)
+    # sample2 = np.random.choice(unguessed, perm_size, replace=False)
+    
+    # print("Seed", seed)
+    sample = random.sample(unguessed, perm_size)
+    # print("Card", seedcard, "Perm size", perm_size, "Sample", sample)
+    
+    return sample
+
 
 
 def get_unguessed_cards(player, play = False):
@@ -114,7 +132,7 @@ def get_remaining_cards(player, all_cards):
     )
     remaining_cards = [card for card in all_cards if card not in exposed_set]
 
-    print(f"Remaining cards for player {player.name}: {remaining_cards}")
+    #print(f"Remaining cards for player {player.name}: {remaining_cards}")
     return remaining_cards
 
 
@@ -133,7 +151,7 @@ def round_1_strategy(player, remaining_cards):
 
     remaining_cards = [card for card in remaining_cards if card.suit != suit]
     suit_groups = group_cards_by_suit(remaining_cards)
-
+    random.seed(7)
     selected_cards = [
         card
         for _, cards in suit_groups.items()
@@ -198,7 +216,7 @@ def update_probabilities_from_c_vals(player, probabilities, game_round):
                 if c == len(guess):  # All cards are right
                     prob[card] = 100
                 elif c > (len(guess) // 2) + 1:  # More than half are right
-                    prob[card] *= 5 * (c / len(guess))
+                    prob[card] *= (c / len(guess))
                 elif c == 0:
                     prob[card] = 0
                 else:  # Boost by c/len(guess)
@@ -228,9 +246,14 @@ def playing(player: Player, deck: Deck):
     game_round <=10: Alternate between min and max cards
     game_round >10: Play most similar card from permutaion
     """
+    global PERMUTATIONS_SEEN
     game_round = len(player.played_cards) + 1
+    # print("SEED", deck.seed)
+    player.hand=sorted(player.hand, key=lambda k: VAL_TO_NUM[k.value] + SUIT_TO_NUM[k.suit])
 
     if game_round == 1:
+        PERMUTATIONS_SEEN = []
+        # print("PLAYER", player.name,PERMUTATIONS_SEEN, deck.seed, player.hand)
         freq = get_suit_frequencies(player.hand)
         min_suit = min(freq, key=freq.get)
         max_card_in_min_suit = max(
@@ -252,6 +275,10 @@ def playing(player: Player, deck: Deck):
     min_sim = len(player.hand)
     max_sim = 0
     card_index_max = 0
+    card1 = -1
+    permm1 = []
+    card2 =-1
+    permm2 = []
     unguessed_cards = get_unguessed_cards(player, True)
     for i, k in enumerate(player.hand):
         perm = generate_permutation(13 - game_round, k, player, unguessed_cards)
@@ -259,25 +286,33 @@ def playing(player: Player, deck: Deck):
         if sim < min_sim:
             card_index_min = i
             min_sim = sim
+            card1 = k
+            permm1 = perm
         elif sim > max_sim:
             card_index_max = i
             max_sim = sim
+            card2 = k
+            permm2 = perm
     #print("Card", card, "PERM", permmm, "PERM FROM RANDOM", generate_permutation(13-game_round, card, player, unguessed_cards))
-    
+    #print("Max similarity", max_sim)
+    #print("Min similarity", min_sim)
+    print("Playing:")
     if game_round %2 == 0:
+        print(card1, permm1)
         return card_index_min
     else:
+        print(card2, permm2)
         return card_index_max
 
 
 
 def guessing(player: Player, cards, game_round):
     """Returns a set of cards guessed at each game round."""
-    print(f"\nPlayer: {player.name}")
+    #print(f"\nPlayer: {player.name}")
 
     remaining_cards = get_remaining_cards(player, cards)
     if not remaining_cards:
-        print(f"0 cards remaining at game round {game_round}")
+        #print(f"0 cards remaining at game round {game_round}")
         return random.sample(cards, 13 - game_round)
 
     if game_round == 1:
@@ -296,19 +331,23 @@ def guessing(player: Player, cards, game_round):
             prob, player.exposed_cards[PARTNERS[player.name]][-1], game_round
         )
     else:
-        print("Last exposed", player.exposed_cards[PARTNERS[player.name]][-1])
+        #print("Last exposed", player.exposed_cards[PARTNERS[player.name]][-1])
         unguessed_cards = get_unguessed_cards(player)
         most_sim_p = generate_permutation(13-game_round, player.exposed_cards[PARTNERS[player.name]][-1], player, unguessed_cards)
         PERMUTATIONS_SEEN[player.name].append(most_sim_p)
-        print("Most Disimilar Permutation", most_sim_p)
+        #print("Most Similar/Disimilar Permutation", most_sim_p)
 
     for i,permutation in enumerate(PERMUTATIONS_SEEN[player.name]):
+        #print(i,permutation)
         for val in permutation:
+            #print(val)
             if val in prob:
                 if i%2 == 0:
                     prob[val] *= 0.9  # Reduce
+                    #print("Reducing prob of ", val, "to ", prob[val])
                 else:
                     prob[val] *=1.1 #Increase
+                    #print("Increasing prob of ", val, "to ", prob[val])
 
     normalized_weights = np.array(list(prob.values()))
     sorted_indices = np.argsort(normalized_weights)[::-1]

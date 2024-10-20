@@ -9,10 +9,12 @@ import numpy as np
 import logging
 import functools
 import io
+import os
 import sys
 from contextlib import redirect_stdout
 from player_strategies import NorthSouthStrategy, EastWestStrategy
 from guessing_functions import NorthSouthGuess, EastWestGuess
+import csv
 
 
 
@@ -276,6 +278,15 @@ def log_output(flag):
 def create_logged_function(func, flag):
     return log_output(flag)(func)
 
+def log_results(ns, ew, score_p1, score_p2, seed):
+    filename = 'tournaments.csv'
+    file_exists = os.path.isfile(filename)
+    
+    with open(filename, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        if not file_exists:
+            writer.writerow(['P1 [NS]', 'P2 [EW]', 'Score P1', 'Score P2', 'Seed'])
+        writer.writerow([ns, ew, score_p1, score_p2, seed])
 
 def run_game_without_gui(seed):
     deck = Deck(seed)
@@ -303,8 +314,12 @@ def run_game_without_gui(seed):
             for other_player in players:
                 other_player.update_exposed_cards(player.name, played_card)
         
+        idealGuessLen = 13 - round
+
         try:
             northGuess = NorthSouthGuess(players[0], deck.copyCards, round)
+            if len(northGuess) > idealGuessLen:
+                northGuess = northGuess[:idealGuessLen]
             players[0].guesses.append(northGuess)
             cNorth = len(set(northGuess).intersection(set(players[2].hand)))
         except:
@@ -316,6 +331,8 @@ def run_game_without_gui(seed):
 
         try:
             eastGuess = EastWestGuess(players[1], deck.copyCards, round)
+            if len(eastGuess) > idealGuessLen:
+                eastGuess = eastGuess[:idealGuessLen]
             players[1].guesses.append(eastGuess)
             cEast = len(set(eastGuess).intersection(set(players[3].hand)))
         except:
@@ -327,6 +344,8 @@ def run_game_without_gui(seed):
 
         try:
             southGuess = NorthSouthGuess(players[2], deck.copyCards, round)
+            if len(southGuess) > idealGuessLen:
+                southGuess = southGuess[:idealGuessLen]
             players[2].guesses.append(southGuess)
             cSouth = len(set(southGuess).intersection(set(players[0].hand)))
 
@@ -339,6 +358,8 @@ def run_game_without_gui(seed):
 
         try:
             westGuess = EastWestGuess(players[3], deck.copyCards, round)
+            if len(westGuess) > idealGuessLen:
+                westGuess = westGuess[:idealGuessLen]
             players[3].guesses.append(westGuess)
             cWest = len(set(westGuess).intersection(set(players[1].hand)))
 
@@ -426,6 +447,7 @@ if __name__ == "__main__":
             scores = run_game_without_gui(seed)
             partnership_scoresNS.append(scores["NS"])
             partnership_scoresEW.append(scores["EW"])
+            log_results(args.nsStrategy, args.ewStrategy, scores["NS"], scores["EW"], seed)
             seed += 1
         
         avg_scores = {

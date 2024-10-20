@@ -1,11 +1,12 @@
 from collections import defaultdict
 import random
+from CardGame import Card
 
 ordered_players = ["North", "East", "South", "West"]
 avg = [0] * 12
 count = 0
 
-# ​​Obtained via simulation - unused rn, could be used later
+# ​​Obtained via simulation
 expectation_constants = {
     "North": [
         5.0279,
@@ -69,7 +70,6 @@ expectation_constants = {
     ],
 }
 
-
 samples_received = defaultdict(list)
 
 
@@ -77,7 +77,7 @@ def get_seed(card, round):
     """
     Generates a seed value based on the card's value and suit.
     """
-    return (card**round) + 7
+    return (card + 1) * 419 + (1 + round) * 853
 
 
 def get_possible_cards(player, stop_at_who):
@@ -102,7 +102,6 @@ def get_sample(card, sample_size, player, stop_at_who, round):
     """
     possible_cards = get_possible_cards(player, stop_at_who)
     possible_cards.remove(card)
-    # print(card, len(possible_cards), player.name, stop_at_who)
     seed = get_seed(card, round)
     random.seed(seed)
     return random.sample(possible_cards, sample_size)
@@ -114,7 +113,6 @@ def playing(player, deck):
     the generated sample and the player's own hand.
     """
     round = len(player.cVals) + 1
-    # print(player.name, player.exposed_cards)
     if not player.hand:
         return None
 
@@ -127,19 +125,16 @@ def playing(player, deck):
 
     for idx, card in enumerate(held_cards):
         sample = get_sample(card, sample_size, player, player.name, round)
-        # print(card, ",", sample)
 
         score = sum(1 for c in sample if c in held_cards)
 
         if score > highest_score:
             highest_score = score
             best_card_index = idx
-    # print("!!!", highest_score)
     return best_card_index if best_card_index != -1 else 0
 
 
 def guessing(player, cards, round):
-    # print(round, player.cVals)
     global samples_received
     if round == 1:
         samples_received = defaultdict(list)
@@ -150,7 +145,9 @@ def guessing(player, cards, round):
     #         avg[i] = (avg[i] * (count - 1) + player.cVals[i]) / count
     #     print(player.name, avg)
 
-    cp = {val: 1 for val in range(52)}
+    if round >= 13:
+        return []
+    cp = {val: (13 - round) / 52 for val in range(52)}
 
     for held_card in player.hand:
         del cp[card_to_val(held_card)]
@@ -175,26 +172,45 @@ def guessing(player, cards, round):
 
     last_partner_card = card_to_val(partner_exposed_cards[-1])
 
+    update_probabilities_with_guesses(player, cp, player.cVals, player.guesses, True)
+
     sample_size = 13 - len(partner_exposed_cards)
     sample_size = max(sample_size, 0)
 
     sample = get_sample(last_partner_card, sample_size, player, partner_name, round)
-    # print("---", player.name, sample)
     samples_received[player.name].append(sample)
 
-    update_probabilities_with_guesses(player, cp, round, player.cVals, player.guesses)
+    our_samples = samples_received[player.name]
+    for i in range(len(our_samples)):
+        our_samples[i] = [s for s in our_samples[i] if s in cp]
 
-    sampled_count = defaultdict(int)
-    for i in range(len(samples_received[player.name])):
-        s = samples_received[player.name][i]
-        for c in s:
-            if c in cp:
-                sampled_count[c] += 1
+    taken_from_samples = []
+    if round <= 8:
+        update_probabilities_with_guesses(
+            player, cp, expectation_constants[partner_name][:round], our_samples, False
+        )
 
-    taken_from_samples = sorted(
-        sampled_count.keys(), key=lambda c: sampled_count[c], reverse=True
-    )[: min(13 - round, len(sampled_count))]
-    # print(player.name, taken_from_samples, sampled_count)
+    else:
+        sampled_cVals = player.cVals + [expectation_constants[partner_name][round - 1]]
+
+        for i in range(len(sampled_cVals) - 1):
+            for g in player.guesses[i]:
+                if g in partner_exposed_cards:
+                    sampled_cVals[i] -= 1
+                    break
+
+        sampled_count = defaultdict(int)
+        for i in range(len(our_samples)):
+            s = our_samples[i]
+            for c in s:
+                if c in cp:
+                    sampled_count[c] += min(1, sampled_cVals[i] / len(s))
+
+        # for k in sampled_count:
+        #     print(k, ":", sampled_count[k])
+        taken_from_samples = sorted(
+            sampled_count.keys(), key=lambda c: sampled_count[c], reverse=True
+        )[: min(13 - round, len(sampled_count))]
 
     selected_vals = sorted(
         [k for k in cp.keys() if k not in taken_from_samples],
@@ -202,18 +218,19 @@ def guessing(player, cards, round):
         reverse=True,
     )[: 13 - round - len(taken_from_samples)]
     selected_vals += taken_from_samples
+
     selected = []
     for card in cards:
         if card_to_val(card) in selected_vals:
             selected.append(card)
-    # print(selected_vals, len(cp))
+    # print("----")
     # for k in cp:
     #     print(k, ":", cp[k])
     # print("\n\n")
     return selected
 
 
-def update_probabilities_with_guesses(player, cp, round, cVals, guesses):
+def update_probabilities_with_guesses(player, cp, cVals, guesses, is_guesses):
     """
     Update probabilities using previous guesses and correct guesses count (cVals).
     """
@@ -224,9 +241,9 @@ def update_probabilities_with_guesses(player, cp, round, cVals, guesses):
     prev_possible_cards = 0
     while len(cp) != prev_possible_cards:
         prev_possible_cards = len(cp)
-
         for past_round, guess_set in enumerate(guesses):
-            guess_set = [card_to_val(card) for card in guess_set]
+            if guess_set and isinstance(guess_set[0], Card):
+                guess_set = [card_to_val(card) for card in guess_set]
             numerator = cVals[past_round]
             denominator = len(guess_set)
 
@@ -238,32 +255,28 @@ def update_probabilities_with_guesses(player, cp, round, cVals, guesses):
                     denominator -= 1
 
             if denominator > 0:
-                remaining_prob = numerator / denominator
-                # print("Guessed", guess_set, remaining_prob, numerator)
+                remaining_prob = max(numerator / denominator, 0)
+
                 for card_val in guess_set:
                     if card_val in cp:
-                        if numerator <= 0:
+                        if is_guesses and numerator <= 0:
                             del cp[card_val]
                         else:
-                            cp[card_val] *= remaining_prob
+                            cp[card_val] += remaining_prob
 
             unguessed_cards = set()
             for card_val in cp:
                 if card_val not in guess_set:
                     unguessed_cards.add(card_val)
 
-            # print(len(unguessed_cards), len(guess_set), len(cp))
-
             if len(unguessed_cards) > 0:
-                missed_guesses = len(guess_set) - cVals[past_round]
+                missed_guesses = max(len(guess_set) - cVals[past_round], 0)
                 remaining_prob = min(missed_guesses / len(unguessed_cards), 1)
-                # print("Unguessed", unguessed_cards, remaining_prob, missed_guesses)
-                # print(missed_guesses, len(unguessed_cards))
                 for card_val in unguessed_cards:
-                    if missed_guesses <= 0:
+                    if is_guesses and missed_guesses <= 0:
                         del cp[card_val]
                     else:
-                        cp[card_val] *= remaining_prob
+                        cp[card_val] += remaining_prob
 
 
 def partner(name):
