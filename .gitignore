@@ -8,3 +8,4 @@ lib/
 group7.log
 log-results/*
 !log-results/team0-ewGuesses_log.txt
+tournaments.csv
